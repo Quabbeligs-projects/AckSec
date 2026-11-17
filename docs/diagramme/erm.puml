@@ -1,0 +1,174 @@
+@startuml erm
+' ERM in Krähenfuss-Notation. Nach einer Änderung neu rendern:
+' java -jar plantuml.jar -tsvg -tpng docs/diagramme/erm.puml
+' * vor einer Spalte heisst NOT NULL. CHECK-Constraints stehen in docs/ERM.md.
+
+hide circle
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam linetype ortho
+skinparam nodesep 60
+skinparam ranksep 70
+skinparam class {
+  BackgroundColor #F4F7FB
+  BorderColor #2F4A6D
+  ArrowColor #2F4A6D
+}
+
+entity customer {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * email : VARCHAR(254) <<UNIQUE>>
+  * password_hash : VARCHAR(255)
+  * first_name : VARCHAR(100)
+  * last_name : VARCHAR(100)
+  * birth_date : DATE
+  * street : VARCHAR(150)
+  * zip : CHAR(4)
+  * city : VARCHAR(100)
+  * phone : VARCHAR(16)
+  totp_secret : VARBINARY(255)
+  totp_last_step : BIGINT
+  * is_locked : BOOLEAN
+  * failed_logins : SMALLINT UNSIGNED
+  login_blocked_until : DATETIME
+  * must_change_password : BOOLEAN
+  password_expires_at : DATETIME
+  * created_at : DATETIME
+}
+
+entity employee {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * email : VARCHAR(254) <<UNIQUE>>
+  * password_hash : VARCHAR(255)
+  * first_name : VARCHAR(100)
+  * last_name : VARCHAR(100)
+  totp_secret : VARBINARY(255)
+  totp_last_step : BIGINT
+  * is_active : BOOLEAN
+  * failed_logins : SMALLINT UNSIGNED
+  login_blocked_until : DATETIME
+  * created_at : DATETIME
+}
+
+entity recovery_code {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * customer_id : BIGINT UNSIGNED <<FK>>
+  * code_hash : VARCHAR(255)
+  used_at : DATETIME
+  * created_at : DATETIME
+}
+
+entity session {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * token_hash : BINARY(32) <<UNIQUE>>
+  customer_id : BIGINT UNSIGNED <<FK>>
+  employee_id : BIGINT UNSIGNED <<FK>>
+  * data : JSON
+  * created_at : DATETIME
+  * last_seen_at : DATETIME
+}
+
+entity account {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  customer_id : BIGINT UNSIGNED <<FK>>
+  * iban : CHAR(21) <<UNIQUE>>
+  * type : ENUM(private, savings, cash)
+  name : VARCHAR(50)
+  * status : ENUM(open, locked, closed)
+  * balance : BIGINT
+  * opened_at : DATETIME
+  closed_at : DATETIME
+}
+
+entity booking {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * type : ENUM(transfer, standing_order, cash_deposit)
+  * reference : CHAR(12) <<UNIQUE>>
+  message : VARCHAR(140)
+  recipient_name : VARCHAR(70)
+  employee_id : BIGINT UNSIGNED <<FK>>
+  idempotency_key : CHAR(32) <<UNIQUE>>
+  * created_at : DATETIME
+}
+
+entity ledger_entry {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * booking_id : BIGINT UNSIGNED <<FK>>
+  * account_id : BIGINT UNSIGNED <<FK>>
+  * amount : BIGINT
+  * balance_after : BIGINT
+  ..
+  UNIQUE (booking_id, account_id)
+}
+
+entity standing_order {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * from_account_id : BIGINT UNSIGNED <<FK>>
+  * to_account_id : BIGINT UNSIGNED <<FK>>
+  * recipient_name : VARCHAR(70)
+  * amount : BIGINT
+  message : VARCHAR(140)
+  * frequency : ENUM(weekly, monthly, quarterly, yearly)
+  * first_run : DATE
+  end_date : DATE
+  next_run : DATE
+  * status : ENUM(active, ended, deleted)
+  * created_at : DATETIME
+  * updated_at : DATETIME
+}
+
+entity standing_order_run {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * standing_order_id : BIGINT UNSIGNED <<FK>>
+  * due_date : DATE
+  * status : ENUM(done, failed)
+  failure_reason : ENUM(insufficient_funds, daily_limit, account_unavailable)
+  booking_id : BIGINT UNSIGNED <<FK, UNIQUE>>
+  * executed_at : DATETIME
+  ..
+  UNIQUE (standing_order_id, due_date)
+}
+
+entity audit_log {
+  * id : BIGINT UNSIGNED <<PK>>
+  --
+  * created_at : DATETIME(6)
+  * actor_type : ENUM(customer, employee, system, anonymous)
+  actor_customer_id : BIGINT UNSIGNED <<FK>>
+  actor_employee_id : BIGINT UNSIGNED <<FK>>
+  * action : VARCHAR(50)
+  subject_customer_id : BIGINT UNSIGNED <<FK>>
+  subject_account_id : BIGINT UNSIGNED <<FK>>
+  reason : VARCHAR(500)
+  ip_address : VARCHAR(45)
+  details : JSON
+}
+
+customer ||--o{ recovery_code
+customer |o--o{ session
+employee |o--o{ session
+customer |o--o{ account : besitzt
+
+account ||--o{ ledger_entry
+booking ||--|{ ledger_entry : "genau 2"
+employee |o--o{ booking : verbucht
+
+account ||--o{ standing_order : belastet
+account ||--o{ standing_order : empfängt
+standing_order ||--o{ standing_order_run
+standing_order_run |o--o| booking : erzeugt
+
+customer |o--o{ audit_log : "löst aus / betrifft"
+employee |o--o{ audit_log : löst aus
+account |o--o{ audit_log : betrifft
+
+@enduml
