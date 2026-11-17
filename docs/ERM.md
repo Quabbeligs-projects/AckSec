@@ -53,7 +53,7 @@ A logged-in session with the timestamp of login and the last activity, so that t
 
 Used in UC2, UC7, UC8, UC9.
 
-## Beziehungen, I let claude do ts
+## Beziehungen, I let claude do the table, as I'm dogshit at making tables in markdown and it takes ages...
 
 | Beziehung | Kardinalität | Begründung |
 |-----------|--------------|------------|
@@ -71,4 +71,152 @@ Used in UC2, UC7, UC8, UC9.
 | customer bzw. employee löst audit_log-Eintrag aus | 1 : 0..n | Beim System als Auslöser sind beide leer |
 | audit_log betrifft customer bzw. account | 0..1 : 0..n | z.B. welches Konto gesperrt wurde (UC7) |
 
-Damit kommen wir auf zehn Tabellen und deutlich mehr als vier Beziehungen. Die Mindestanforderung ist also klar erfüllt, ohne dass wir Tabellen nur für die Anzahl erfinden mussten.
+## Tables, I let claude do the tables for the same reasons here
+MySQL 8 with InnoDB, character set utf8mb4. Every table has a surrogate primary key id of type BIGINT UNSIGNED AUTO_INCREMENT. All timestamps are stored as DATETIME in UTC and only converted to Swiss time upon display. All foreign keys have ON DELETE RESTRICT, meaning a row that is still referenced by something cannot be deleted.
+
+For fixed selection values such as account type or status, we use ENUM. The database then rejects any other value, and we do not need additional lookup tables for lists that never change.
+
+### customer
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| email | VARCHAR(254) | NOT NULL, UNIQUE | 254 ist die maximale Länge einer E-Mail-Adresse. Die Sortierung `utf8mb4_0900_ai_ci` ignoriert Gross-/Kleinschreibung, darum ist auch `Max@x.ch` und `max@x.ch` doppelt. |
+| password_hash | VARCHAR(255) | NOT NULL | Argon2id-Hash inkl. Salt und Parametern |
+| first_name | VARCHAR(100) | NOT NULL | |
+| last_name | VARCHAR(100) | NOT NULL | |
+| birth_date | DATE | NOT NULL, CHECK ≥ 1900-01-01 | Das Mindestalter von 18 prüft die Anwendung, siehe unten |
+| street | VARCHAR(150) | NOT NULL | |
+| zip | CHAR(4) | NOT NULL, CHECK vier Ziffern, erste nicht 0 | Nur Schweizer Postleitzahlen |
+| city | VARCHAR(100) | NOT NULL | |
+| phone | VARCHAR(16) | NOT NULL, CHECK Format `+41...` (E.164) | Einheitlich gespeichert, egal wie es eingegeben wurde |
+| totp_secret | VARBINARY(255) | NULL | Verschlüsselt. NULL heisst: 2FA noch nicht eingerichtet (UC1, Ablauf F) |
+| totp_last_step | BIGINT | NULL | Zeitschritt des zuletzt benutzten Codes, gegen Wiederverwendung (UC2, Ablauf D) |
+| is_locked | BOOLEAN | NOT NULL, DEFAULT FALSE | Zugang durch Mitarbeitende gesperrt (UC7, Ablauf G) |
+| failed_logins | SMALLINT UNSIGNED | NOT NULL, DEFAULT 0 | Fehlversuche hintereinander (UC2, Ablauf C) |
+| login_blocked_until | DATETIME | NULL | |
+| must_change_password | BOOLEAN | NOT NULL, DEFAULT FALSE | Nach einem Einmalpasswort (UC9, Ablauf C) |
+| password_expires_at | DATETIME | NULL, CHECK nur gesetzt, wenn must_change_password | Ablauf des Einmalpassworts |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
+### employee
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| email | VARCHAR(254) | NOT NULL, UNIQUE | |
+| password_hash | VARCHAR(255) | NOT NULL | |
+| first_name | VARCHAR(100) | NOT NULL | |
+| last_name | VARCHAR(100) | NOT NULL | |
+| totp_secret | VARBINARY(255) | NULL | Wird beim ersten Login eingerichtet, vorher geht nichts |
+| totp_last_step | BIGINT | NULL | |
+| is_active | BOOLEAN | NOT NULL, DEFAULT TRUE | Ausgetretene Mitarbeitende werden deaktiviert statt gelöscht, weil das Audit-Log auf sie zeigt |
+| failed_logins | SMALLINT UNSIGNED | NOT NULL, DEFAULT 0 | |
+| login_blocked_until | DATETIME | NULL | |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
+### recovery_code
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| customer_id | BIGINT UNSIGNED | NOT NULL, FK → customer | |
+| code_hash | VARCHAR(255) | NOT NULL | Argon2id, gleich wie Passwörter |
+| used_at | DATETIME | NULL | NULL heisst: noch nicht benutzt |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
+### session
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| token_hash | BINARY(32) | NOT NULL, UNIQUE | SHA-256 der Session-ID aus dem Cookie |
+| customer_id | BIGINT UNSIGNED | NULL, FK → customer | |
+| employee_id | BIGINT UNSIGNED | NULL, FK → employee | |
+| data | JSON | NOT NULL | Zwischenstände, z.B. Passwort geprüft, aber 2FA noch offen, oder eine Überweisung, die auf den Code wartet |
+| created_at | DATETIME | NOT NULL | |
+| last_seen_at | DATETIME | NOT NULL | Für den Timeout nach 10 Minuten Inaktivität (UC2, Ablauf I) |
+
+### account
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| customer_id | BIGINT UNSIGNED | NULL, FK → customer | NULL nur beim Kassenkonto |
+| iban | CHAR(21) | NOT NULL, UNIQUE, CHECK Format `CH` + 19 Zeichen | Schweizer IBANs sind immer 21 Zeichen lang. Die Prüfziffer kontrolliert die Anwendung. |
+| type | ENUM('private', 'savings', 'cash') | NOT NULL | Privatkonto, Sparkonto, Kassenkonto der Bank |
+| name | VARCHAR(50) | NULL | Frei wählbare Bezeichnung, z.B. «Ferien» |
+| status | ENUM('open', 'locked', 'closed') | NOT NULL, DEFAULT 'open' | |
+| balance | BIGINT | NOT NULL, DEFAULT 0 | Saldo in Rappen |
+| opened_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+| closed_at | DATETIME | NULL | |
+
+### booking
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| type | ENUM('transfer', 'standing_order', 'cash_deposit') | NOT NULL | |
+| reference | CHAR(12) | NOT NULL, UNIQUE | Zufällige Referenznummer für die Bestätigung (UC4, Schritt 7) |
+| message | VARCHAR(140) | NULL | |
+| recipient_name | VARCHAR(70) | NULL | Vom Absender eingegeben, nicht geprüft (UC4, Bemerkungen) |
+| employee_id | BIGINT UNSIGNED | NULL, FK → employee | Wer die Bareinzahlung verbucht hat |
+| idempotency_key | CHAR(32) | NULL, UNIQUE | Gegen doppeltes Absenden (UC4, Ablauf J) |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
+### ledger_entry
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| booking_id | BIGINT UNSIGNED | NOT NULL, FK → booking | |
+| account_id | BIGINT UNSIGNED | NOT NULL, FK → account | |
+| amount | BIGINT | NOT NULL, CHECK `amount <> 0` | Negativ = Belastung, positiv = Gutschrift |
+| balance_after | BIGINT | NOT NULL | Saldo des Kontos direkt nach dieser Zeile, für die Historie (UC5) |
+
+### standing_order
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| from_account_id | BIGINT UNSIGNED | NOT NULL, FK → account | Belastungskonto, kann nicht geändert werden (UC6, Ablauf B) |
+| to_account_id | BIGINT UNSIGNED | NOT NULL, FK → account | |
+| recipient_name | VARCHAR(70) | NOT NULL | |
+| amount | BIGINT | NOT NULL, CHECK `amount > 0` | Rappen |
+| message | VARCHAR(140) | NULL | |
+| frequency | ENUM('weekly', 'monthly', 'quarterly', 'yearly') | NOT NULL | `interval` wäre der naheliegende Name, ist in MySQL aber ein reserviertes Wort |
+| first_run | DATE | NOT NULL | Bestimmt auch den Tag im Monat, auf den nach einem kurzen Monat zurückgesprungen wird (UC6, Ablauf G) |
+| end_date | DATE | NULL | |
+| next_run | DATE | NULL | |
+| status | ENUM('active', 'ended', 'deleted') | NOT NULL, DEFAULT 'active' | |
+| created_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+| updated_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP | |
+
+### standing_order_run
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | |
+| standing_order_id | BIGINT UNSIGNED | NOT NULL, FK → standing_order | |
+| due_date | DATE | NOT NULL | Fälligkeitstag, nicht der Tag, an dem der Scheduler lief |
+| status | ENUM('done', 'failed') | NOT NULL | |
+| failure_reason | ENUM('insufficient_funds', 'daily_limit', 'account_unavailable') | NULL | UC6, Ablauf E |
+| booking_id | BIGINT UNSIGNED | NULL, UNIQUE, FK → booking | |
+| executed_at | DATETIME | NOT NULL, DEFAULT CURRENT_TIMESTAMP | |
+
+### audit_log
+
+| Spalte | Typ | Constraints | Bemerkung |
+|--------|-----|-------------|-----------|
+| id | BIGINT UNSIGNED | PK | Gibt auch die Reihenfolge an |
+| created_at | DATETIME(6) | NOT NULL, DEFAULT CURRENT_TIMESTAMP(6) | Mit Mikrosekunden |
+| actor_type | ENUM('customer', 'employee', 'system', 'anonymous') | NOT NULL | `anonymous` z.B. für einen Login-Versuch mit unbekannter E-Mail-Adresse |
+| actor_customer_id | BIGINT UNSIGNED | NULL, FK → customer | |
+| actor_employee_id | BIGINT UNSIGNED | NULL, FK → employee | |
+| action | VARCHAR(50) | NOT NULL | z.B. `login_failed`, `account_locked`, `transfer_done` |
+| subject_customer_id | BIGINT UNSIGNED | NULL, FK → customer | Betroffene Person |
+| subject_account_id | BIGINT UNSIGNED | NULL, FK → account | Betroffenes Konto |
+| reason | VARCHAR(500) | NULL | Begründung der Mitarbeitenden (UC7) |
+| ip_address | VARCHAR(45) | NULL | 45 Zeichen reichen auch für IPv6 |
+| details | JSON | NULL | z.B. alter und neuer Wert bei geänderten Personalien (UC7, Ablauf H) |
+
