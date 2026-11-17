@@ -1,0 +1,58 @@
+@startuml use-case-diagramm
+' Quelle für das Use-Case-Diagramm. Nach einer Änderung neu rendern:
+' java -jar plantuml.jar -tsvg -tpng docs/diagramme/use-case-diagramm.puml
+
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam usecase {
+  BackgroundColor #F4F7FB
+  BorderColor #2F4A6D
+}
+skinparam actorBorderColor #2F4A6D
+
+actor "Kund*in" as kunde
+actor "Mitarbeiter*in" as mitarbeiter
+actor "System\n(Scheduler)" as scheduler
+
+rectangle "AckSec" {
+  usecase "UC1 Registrierung/\nKontoeröffnung" as uc1
+  usecase "UC2 Login mit 2FA" as uc2
+  usecase "UC3 Konten verwalten" as uc3
+  usecase "UC4 Überweisung" as uc4
+  usecase "UC5 Transaktionshistorie" as uc5
+  usecase "UC6 Dauerauftrag" as uc6
+  usecase "UC8 Passwort ändern" as uc8
+  usecase "UC9 Zugang\nwiederherstellen" as uc9
+  usecase "UC10 Profil bearbeiten" as uc10
+  usecase "UC7 Kunden verwalten/\nKonto sperren" as uc7
+  usecase "Buchung durchführen" as buchung
+}
+
+kunde -- uc1
+kunde -- uc2
+kunde -- uc3
+kunde -- uc4
+kunde -- uc5
+kunde -- uc6
+kunde -- uc8
+kunde -- uc9
+kunde -- uc10
+
+uc7 -- mitarbeiter
+uc9 -- mitarbeiter
+uc6 -- scheduler
+
+' UC4, die Ausführung von Daueraufträgen und die Bareinzahlung buchen alle gleich
+uc4 ..> buchung : <<include>>
+uc6 ..> buchung : <<include>>
+uc7 ..> buchung : <<include>>
+
+uc9 ..> uc2 : <<extend>>
+
+' nur fürs Layout, schiebt die beiden Akteure rechts neben den Kasten
+buchung -[hidden]- mitarbeiter
+uc2 -[hidden]- scheduler
+
+@enduml
