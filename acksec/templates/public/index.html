@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+
+{% block title %}Willkommen{% endblock %}
+
+{% block content %}
+  <h1>E-Banking</h1>
+  <p class="lead">Melden Sie sich mit Ihrer E-Mail-Adresse, Ihrem Passwort und einem Code aus Ihrer Authenticator-App an. Noch kein Konto? Die Eröffnung dauert ein paar Minuten.</p>
+  {# TODO UC1/UC2: switch to url_for once login and registration routes exist #}
+  <div class="actions">
+    <a class="btn btn-primary" href="/login">Anmelden</a>
+    <a class="btn btn-secondary" href="/registrieren">Konto eröffnen</a>
+  </div>
+{% endblock %}

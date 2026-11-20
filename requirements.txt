@@ -1,11 +1,17 @@
-# everything pinned, including what flask pulls in, so every install is identical
-# update with: pip install -U <pkg> && pip freeze, then check the changelog
+alembic==1.20.1
 blinker==1.9.0
+cffi==2.1.1
 click==8.5.1
+cryptography==50.0.2
 Flask==3.1.3
 gunicorn==27.0.1
 itsdangerous==2.2.0
 Jinja2==3.1.6
+Mako==1.4.3
 MarkupSafe==3.0.4
+pycparser==3.12
+PyMySQL==1.2.4
 python-dotenv==1.2.4
+SQLAlchemy==2.1.9
+typing_extensions==4.16.0
 Werkzeug==3.1.9

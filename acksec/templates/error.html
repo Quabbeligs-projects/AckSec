@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }}{% endblock %}
+
+{% block content %}
+  <h1>{{ title }}</h1>
+  <p class="lead">{{ text }}</p>
+  {% if reference %}
+    <p>Falls der Fehler wieder auftritt, melden Sie sich bitte bei uns und nennen Sie diesen Fehlercode: <strong>{{ reference }}</strong></p>
+  {% endif %}
+  <p><a href="{{ url_for('public.index') }}">Zur Startseite</a></p>
+{% endblock %}

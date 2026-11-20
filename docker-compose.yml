@@ -1,0 +1,93 @@
+name: acksec
+
+services:
+  app:
+    build:
+      context: .
+      target: app
+    command: ["gunicorn", "--bind", "0.0.0.0:8000", "--workers", "2", "--no-control-socket", "--reload", "wsgi:app"]
+    volumes:
+      - ./acksec:/app/acksec:ro
+      - ./wsgi.py:/app/wsgi.py:ro
+    environment:
+      ACKSEC_ENV: ${ACKSEC_ENV:-development}
+      SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+    ports:
+      - "127.0.0.1:8000:8000"
+    networks:
+      - frontend
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  migrate:
+    build:
+      context: .
+      target: app
+    profiles: ["tools"]
+    command: ["alembic", "upgrade", "head"]
+    volumes:
+      - ./migrations:/app/migrations:ro
+      - ./alembic.ini:/app/alembic.ini:ro
+    environment:
+      MIGRATION_DATABASE_URL: mysql+pymysql://acksec_migrate:${MYSQL_MIGRATE_PASSWORD:?set MYSQL_MIGRATE_PASSWORD in .env}@db:3306/acksec
+    # backend only
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+
+  test:
+    build:
+      context: .
+      target: test
+    profiles: ["tools"]
+    volumes:
+      - ./acksec:/app/acksec:ro
+      - ./tests:/app/tests:ro
+      - ./migrations:/app/migrations:ro
+      - ./alembic.ini:/app/alembic.ini:ro
+      - ./pytest.ini:/app/pytest.ini:ro
+    environment:
+      TEST_DATABASE_URL: mysql+pymysql://acksec_app:${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD in .env}@db:3306/acksec_test
+      TEST_MIGRATION_DATABASE_URL: mysql+pymysql://acksec_migrate:${MYSQL_MIGRATE_PASSWORD:?set MYSQL_MIGRATE_PASSWORD in .env}@db:3306/acksec_test
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:?set MYSQL_ROOT_PASSWORD in .env}
+      MYSQL_ROOT_HOST: localhost
+      MYSQL_DATABASE: acksec
+      MYSQL_APP_PASSWORD: ${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD in .env}
+      MYSQL_MIGRATE_PASSWORD: ${MYSQL_MIGRATE_PASSWORD:?set MYSQL_MIGRATE_PASSWORD in .env}
+      ACKSEC_CREATE_TEST_DB: "1"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/mysql/init:/docker-entrypoint-initdb.d:ro
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "MYSQL_PWD=\"$$MYSQL_APP_PASSWORD\" mysql -h 127.0.0.1 -u acksec_app -e 'SELECT 1'"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+networks:
+  frontend:
+  backend:
+    internal: true
+
+volumes:
+  db_data:

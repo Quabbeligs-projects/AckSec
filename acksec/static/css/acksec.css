@@ -1,0 +1,338 @@
+/* AckSec, variant A ("Kantonal"). No inline styles anywhere, the CSP will forbid them. */
+
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("../fonts/source-sans-3-latin-400-normal.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("../fonts/source-sans-3-latin-600-normal.woff2") format("woff2");
+  font-weight: 600;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Source Sans 3";
+  src: url("../fonts/source-sans-3-latin-700-normal.woff2") format("woff2");
+  font-weight: 700;
+  font-display: swap;
+}
+
+/* the brand blue lives here and nowhere else */
+:root {
+  --navy: #14365e;
+  --navy-dark: #0c2443;
+  --ink: #1b222c;
+  --muted: #5a6474;
+  --line: #d7dce3;
+  --panel: #eef1f5;
+  --credit: #1b6b3a;
+  --danger: #a3221b;
+  --white: #fff;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: "Source Sans 3", system-ui, sans-serif;
+  font-size: 17px;
+  line-height: 1.5;
+  color: var(--ink);
+  background: var(--white);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+a { color: var(--navy); }
+
+/* keyboard users must always see where they are */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible {
+  outline: 3px solid var(--navy);
+  outline-offset: 2px;
+}
+
+.wrap {
+  max-width: 1140px;
+  margin: 0 auto;
+  padding: 0 32px;
+}
+
+.skip-link {
+  position: absolute;
+  left: -9999px;
+}
+.skip-link:focus {
+  left: 16px;
+  top: 8px;
+  background: var(--white);
+  padding: 8px 12px;
+  z-index: 10;
+}
+
+/* utility bar above the header */
+.util {
+  background: var(--panel);
+  font-size: 14px;
+  color: #3d4756;
+}
+.util-in {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 36px;
+}
+.util-right { margin-left: auto; }
+
+/* header */
+.top {
+  background: var(--navy);
+  color: var(--white);
+}
+.top-in {
+  display: flex;
+  align-items: center;
+  gap: 56px;
+  min-height: 76px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: var(--white);
+  text-decoration: none;
+}
+.logo-mark {
+  width: 34px;
+  height: 34px;
+  background: var(--white);
+  color: var(--navy);
+  font-weight: 700;
+  font-size: 26px;
+  line-height: 34px;
+  text-align: center;
+}
+.logo-text {
+  font-weight: 700;
+  font-size: 24px;
+  letter-spacing: -0.2px;
+}
+.logo-text small {
+  font-weight: 400;
+  font-size: 15px;
+  margin-left: 6px;
+  opacity: 0.85;
+}
+.mainnav {
+  display: flex;
+  gap: 28px;
+}
+.mainnav a {
+  color: #dfe6ef;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 25px 0 22px;
+  border-bottom: 3px solid transparent;
+}
+.mainnav a:hover { color: var(--white); }
+.mainnav a[aria-current="page"] {
+  color: var(--white);
+  border-bottom-color: var(--white);
+}
+.mainnav a:focus-visible { outline-color: var(--white); }
+.logo:focus-visible { outline-color: var(--white); }
+
+/* page content */
+.page {
+  flex: 1;
+  width: 100%;
+  padding-top: 36px;
+  padding-bottom: 64px;
+}
+h1 {
+  font-size: 38px;
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.4px;
+  margin: 0 0 8px;
+}
+h2 {
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0 0 12px;
+}
+.meta {
+  color: var(--muted);
+  font-size: 15px;
+  margin: 0 0 36px;
+}
+.lead {
+  font-size: 19px;
+  max-width: 40em;
+  margin: 0 0 28px;
+}
+section { margin-bottom: 44px; }
+
+/* main column with a narrower side column, e.g. overview + quick transfer */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
+  gap: 48px;
+  align-items: start;
+}
+
+.panel {
+  background: var(--panel);
+  padding: 24px;
+}
+
+/* tables for accounts and bookings */
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.data-table th,
+.data-table td {
+  text-align: left;
+  vertical-align: top;
+  padding: 11px 10px;
+}
+.data-table th {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--muted);
+  padding-top: 8px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--ink);
+}
+.data-table td { border-bottom: 1px solid var(--line); }
+.data-table tfoot td {
+  font-weight: 700;
+  border-bottom: none;
+  border-top: 2px solid var(--ink);
+}
+/* amounts: right aligned with equal width digits, so the columns line up */
+.num,
+.data-table .num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.credit { color: var(--credit); }
+.sub {
+  display: block;
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* buttons */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 18px;
+}
+.btn {
+  display: inline-block;
+  padding: 10px 20px;
+  border: 2px solid var(--navy);
+  border-radius: 2px;
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.btn-primary {
+  background: var(--navy);
+  color: var(--white);
+}
+.btn-primary:hover {
+  background: var(--navy-dark);
+  border-color: var(--navy-dark);
+}
+.btn-secondary {
+  background: var(--white);
+  color: var(--navy);
+}
+.btn-secondary:hover { background: var(--panel); }
+
+/* forms */
+.form {
+  display: grid;
+  gap: 6px;
+  max-width: 28em;
+}
+.form label {
+  font-size: 15px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+.form input,
+.form select {
+  font: inherit;
+  width: 100%;
+  padding: 9px 10px;
+  border: 1px solid #8a94a3;
+  border-radius: 2px;
+  background: var(--white);
+}
+.form .btn {
+  margin-top: 14px;
+  justify-self: start;
+}
+.field-error {
+  color: var(--danger);
+  font-size: 15px;
+}
+.hint {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+/* footer */
+.foot {
+  border-top: 1px solid var(--line);
+  font-size: 14px;
+  color: var(--muted);
+}
+.foot-in {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  min-height: 64px;
+  padding-top: 12px;
+  padding-bottom: 12px;
+}
+.foot a { color: var(--muted); }
+.foot-right { margin-left: auto; }
+
+/* small screens: one column, header items stack */
+@media (max-width: 760px) {
+  /* only left and right, the shorthand would also wipe the top padding of .page */
+  .wrap {
+    padding-left: 16px;
+    padding-right: 16px;
+  }
+  .top-in {
+    flex-wrap: wrap;
+    gap: 0 24px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+  .mainnav {
+    width: 100%;
+    overflow-x: auto;
+    gap: 20px;
+  }
+  .mainnav a { padding: 14px 0 11px; }
+  .grid { grid-template-columns: 1fr; }
+  h1 { font-size: 30px; }
+  .util-right,
+  .foot-right { margin-left: 0; }
+}
