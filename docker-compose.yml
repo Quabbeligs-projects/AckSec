@@ -13,6 +13,7 @@ services:
     environment:
       ACKSEC_ENV: ${ACKSEC_ENV:-development}
       SECRET_KEY: ${SECRET_KEY:?set SECRET_KEY in .env}
+      DATABASE_URL: mysql+pymysql://acksec_app:${MYSQL_APP_PASSWORD:?set MYSQL_APP_PASSWORD in .env}@db:3306/acksec
     ports:
       - "127.0.0.1:8000:8000"
     networks:

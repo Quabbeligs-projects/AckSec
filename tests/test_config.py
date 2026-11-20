@@ -8,10 +8,18 @@ def no_dotenv(monkeypatch):
     monkeypatch.setattr("acksec.load_dotenv", lambda: None)
     monkeypatch.delenv("SECRET_KEY", raising=False)
     monkeypatch.delenv("ACKSEC_ENV", raising=False)
+    monkeypatch.setenv("DATABASE_URL", "mysql+pymysql://nobody:nothing@localhost:3306/none")
 
 
 def test_refuses_missing_secret_key():
-    with pytest.raises(RuntimeError, match="not set"):
+    with pytest.raises(RuntimeError, match="SECRET_KEY is not set"):
+        create_app("production")
+
+
+def test_refuses_missing_database_url(monkeypatch):
+    monkeypatch.setenv("SECRET_KEY", "a" * 64)
+    monkeypatch.delenv("DATABASE_URL")
+    with pytest.raises(RuntimeError, match="DATABASE_URL is not set"):
         create_app("production")
 
 
