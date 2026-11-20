@@ -10,6 +10,7 @@ from acksec import create_app
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(__file__))
 
+
 @pytest.fixture
 def app():
     return create_app("testing")
@@ -59,12 +60,55 @@ def migrate_engine(migrated_db):
     yield engine
     engine.dispose()
 
-TABLES_TO_CLEAN = ["customer"]
+CLEANUP = [
+    "DELETE FROM audit_log",
+    "DELETE FROM standing_order_run",
+    "DELETE FROM ledger_entry",
+    "DELETE FROM booking",
+    "DELETE FROM standing_order",
+    "DELETE FROM account WHERE type <> 'cash'",
+    "UPDATE account SET balance = 0 WHERE type = 'cash'",
+    "DELETE FROM session",
+    "DELETE FROM customer",
+    "DELETE FROM employee",
+]
 
 
 @pytest.fixture
 def db(app_engine, migrate_engine):
     yield app_engine
     with migrate_engine.begin() as conn:
-        for table in TABLES_TO_CLEAN:
-            conn.execute(text(f"DELETE FROM {table}"))
+        for statement in CLEANUP:
+            conn.execute(text(statement))
+
+
+@pytest.fixture
+def customer_id(db):
+    with db.begin() as conn:
+        return conn.execute(text("""
+            INSERT INTO customer
+                (email, password_hash, first_name, last_name, birth_date, street, zip, city, phone)
+            VALUES
+                ('laura.meier@example.ch', 'hash', 'Laura', 'Meier', '1990-04-12',
+                 'Rämistrasse 56', '8001', 'Zürich', '+41791234567')
+        """)).lastrowid
+
+
+@pytest.fixture
+def employee_id(db, migrate_engine):
+    with migrate_engine.begin() as conn:
+        return conn.execute(text("""
+            INSERT INTO employee (email, password_hash, first_name, last_name)
+            VALUES ('m.huber@acksec.ch', 'hash', 'Martin', 'Huber')
+        """)).lastrowid
+
+
+@pytest.fixture
+def two_accounts(db, customer_id):
+    with db.begin() as conn:
+        ids = []
+        for iban in ("CH9300762011623852957", "CH4100762011623853012"):
+            ids.append(conn.execute(text(
+                "INSERT INTO account (customer_id, iban, type) VALUES (:customer_id, :iban, 'private')"
+            ), {"customer_id": customer_id, "iban": iban}).lastrowid)
+    return ids

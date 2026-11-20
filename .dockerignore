@@ -1,4 +1,3 @@
-# keep secrets and local stuff out of the image
 .env
 .git
 .venv

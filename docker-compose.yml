@@ -1,3 +1,4 @@
+# ts is an lds, production gets its own shi later
 name: acksec
 
 services:
@@ -37,7 +38,22 @@ services:
       - ./alembic.ini:/app/alembic.ini:ro
     environment:
       MIGRATION_DATABASE_URL: mysql+pymysql://acksec_migrate:${MYSQL_MIGRATE_PASSWORD:?set MYSQL_MIGRATE_PASSWORD in .env}@db:3306/acksec
-    # backend only
+    networks:
+      - backend
+    depends_on:
+      db:
+        condition: service_healthy
+
+  seed:
+    build:
+      context: .
+      target: app
+    profiles: ["tools"]
+    command: ["python", "scripts/seed_dev.py"]
+    volumes:
+      - ./scripts:/app/scripts:ro
+    environment:
+      SEED_DATABASE_URL: mysql+pymysql://acksec_migrate:${MYSQL_MIGRATE_PASSWORD:?set MYSQL_MIGRATE_PASSWORD in .env}@db:3306/acksec
     networks:
       - backend
     depends_on:
@@ -52,6 +68,7 @@ services:
     volumes:
       - ./acksec:/app/acksec:ro
       - ./tests:/app/tests:ro
+      - ./scripts:/app/scripts:ro
       - ./migrations:/app/migrations:ro
       - ./alembic.ini:/app/alembic.ini:ro
       - ./pytest.ini:/app/pytest.ini:ro

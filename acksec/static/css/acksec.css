@@ -1,5 +1,3 @@
-/* AckSec, variant A ("Kantonal"). No inline styles anywhere, the CSP will forbid them. */
-
 @font-face {
   font-family: "Source Sans 3";
   src: url("../fonts/source-sans-3-latin-400-normal.woff2") format("woff2");
@@ -19,7 +17,6 @@
   font-display: swap;
 }
 
-/* the brand blue lives here and nowhere else */
 :root {
   --navy: #14365e;
   --navy-dark: #0c2443;
@@ -48,7 +45,6 @@ body {
 
 a { color: var(--navy); }
 
-/* keyboard users must always see where they are */
 a:focus-visible,
 button:focus-visible,
 input:focus-visible,
@@ -75,7 +71,6 @@ select:focus-visible {
   z-index: 10;
 }
 
-/* utility bar above the header */
 .util {
   background: var(--panel);
   font-size: 14px;
@@ -89,7 +84,6 @@ select:focus-visible {
 }
 .util-right { margin-left: auto; }
 
-/* header */
 .top {
   background: var(--navy);
   color: var(--white);
@@ -147,7 +141,6 @@ select:focus-visible {
 .mainnav a:focus-visible { outline-color: var(--white); }
 .logo:focus-visible { outline-color: var(--white); }
 
-/* page content */
 .page {
   flex: 1;
   width: 100%;
@@ -178,7 +171,6 @@ h2 {
 }
 section { margin-bottom: 44px; }
 
-/* main column with a narrower side column, e.g. overview + quick transfer */
 .grid {
   display: grid;
   grid-template-columns: minmax(0, 2.1fr) minmax(0, 1fr);
@@ -191,7 +183,6 @@ section { margin-bottom: 44px; }
   padding: 24px;
 }
 
-/* tables for accounts and bookings */
 .data-table {
   width: 100%;
   border-collapse: collapse;
@@ -216,7 +207,7 @@ section { margin-bottom: 44px; }
   border-bottom: none;
   border-top: 2px solid var(--ink);
 }
-/* amounts: right aligned with equal width digits, so the columns line up */
+
 .num,
 .data-table .num {
   text-align: right;
@@ -230,7 +221,6 @@ section { margin-bottom: 44px; }
   color: var(--muted);
 }
 
-/* buttons */
 .actions {
   display: flex;
   flex-wrap: wrap;
@@ -261,7 +251,6 @@ section { margin-bottom: 44px; }
 }
 .btn-secondary:hover { background: var(--panel); }
 
-/* forms */
 .form {
   display: grid;
   gap: 6px;
@@ -294,7 +283,6 @@ section { margin-bottom: 44px; }
   color: var(--muted);
 }
 
-/* footer */
 .foot {
   border-top: 1px solid var(--line);
   font-size: 14px;
@@ -312,9 +300,7 @@ section { margin-bottom: 44px; }
 .foot a { color: var(--muted); }
 .foot-right { margin-left: auto; }
 
-/* small screens: one column, header items stack */
 @media (max-width: 760px) {
-  /* only left and right, the shorthand would also wipe the top padding of .page */
   .wrap {
     padding-left: 16px;
     padding-right: 16px;
